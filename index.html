@@ -6,10 +6,11 @@
 <meta name="theme-color" content="#14201c">
 <title>Bank – mon argent</title>
 <style>
-:root{--bg:#14201c;--card:#1d2d27;--line:#2c4238;--txt:#eef3ee;--mut:#8fa89c;--gain:#7fe3a0;--loss:#ff8a7a;--acc:#f2c14e;--ink:#14201c}
-@media (prefers-color-scheme:light){:root{--bg:#f2f5ef;--card:#fff;--line:#d5ded4;--txt:#16241e;--mut:#5c7267;--gain:#1f9d55;--loss:#d6452f;--acc:#e0a91c}}
+:root{--bg:#14201c;--card:#1d2d27;--line:#2c4238;--txt:#eef3ee;--mut:#8fa89c;--gain:#7fe3a0;--loss:#ff8a7a;--acc:#f2c14e;--ink:#14201c;--font:Georgia,"Times New Roman",serif}
+@media (prefers-color-scheme:light){:root:not([data-theme=dark]){--bg:#f2f5ef;--card:#fff;--line:#d5ded4;--txt:#16241e;--mut:#5c7267;--gain:#1f9d55;--loss:#d6452f;--acc:#e0a91c}}
+:root[data-theme=light]{--bg:#f2f5ef;--card:#fff;--line:#d5ded4;--txt:#16241e;--mut:#5c7267;--gain:#1f9d55;--loss:#d6452f;--acc:#e0a91c}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.4 Georgia,"Times New Roman",serif}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.4 var(--font)}
 #app{max-width:560px;margin:auto;padding:max(16px,env(safe-area-inset-top)) 16px calc(150px + env(safe-area-inset-bottom))}
 h1,h2{font-weight:normal;margin:0}
 h2{font-size:20px;margin-bottom:12px}
@@ -42,7 +43,7 @@ svg{width:100%;height:auto;display:block}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:14px;color:var(--mut);justify-content:center}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
 .bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
-.bar button{border:0;border-radius:0;background:none;color:var(--mut);padding:14px 4px;font-size:14px}
+.bar button{border:0;border-radius:0;background:none;color:var(--mut);padding:14px 2px;font-size:13px}
 .bar button.on{color:var(--acc);font-weight:bold}
 .fab{position:fixed;right:18px;bottom:calc(72px + env(safe-area-inset-bottom));width:60px;height:60px;border-radius:50%;padding:0;font-size:34px;line-height:1;background:var(--acc);color:var(--ink);border:0;box-shadow:0 6px 18px rgba(0,0,0,.35)}
 .veil{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:5}
@@ -51,6 +52,17 @@ svg{width:100%;height:auto;display:block}
 .choice{display:flex;justify-content:space-between;align-items:center;text-align:left;margin-bottom:8px;padding:16px;font-size:17px}
 .choice span{color:var(--mut);font-size:22px}
 .back{width:auto;display:inline-block;background:none;border:0;color:var(--mut);padding:4px 0;margin-bottom:8px}
+.set{padding:12px 0;border-top:1px solid var(--line)}
+.set:first-of-type{border-top:0}
+.set>small{display:block;color:var(--mut);margin-bottom:8px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:60px;padding:10px 6px;font-size:15px;color:var(--mut)}
+.seg button.on{background:var(--acc);color:var(--ink);border-color:var(--acc);font-weight:bold}
+.sw{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.sw button{width:38px;height:38px;border-radius:50%;padding:0;border:3px solid transparent}
+.sw button.on{border-color:var(--txt)}
+.sw input{width:46px;height:38px;padding:2px}
+.eye{width:auto;display:inline-block;background:none;border:0;color:var(--mut);padding:4px 8px;font-size:14px;float:right}
 @media (prefers-reduced-motion:no-preference){button{transition:transform .1s}button:active{transform:scale(.97)}}
 </style>
 </head>
@@ -65,9 +77,11 @@ svg{width:100%;height:auto;display:block}
 const $=s=>document.getElementById(s);
 let S;try{S=JSON.parse(localStorage.getItem('bank-app'))}catch(e){}
 if(!S||!S.banks)S={banks:[],tx:[]};
-let screen=0,ci=0,filt='all',lastBank='';
+const DEF={theme:'auto',acc:null,cur:'EUR',font:'serif',size:100,days:14,months:6,vals:true,start:0,hide:false};
+S.cfg=Object.assign({},DEF,S.cfg||{});
+let screen=0,ci=S.cfg.start||0,filt='all',lastBank='';
 const save=()=>{try{localStorage.setItem('bank-app',JSON.stringify(S))}catch(e){}};
-const eur=n=>n.toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
+const eur=n=>S.cfg.hide?'••••':n.toLocaleString('fr-FR',{style:'currency',currency:S.cfg.cur});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const today=()=>new Date().toLocaleDateString('sv');
 const fd=d=>d.split('-').reverse().join('/');
@@ -121,6 +135,7 @@ function bars(lbl,g,l,step){
   const mx=Math.max(1,...g,...l),W=320,H=190,mid=95,n=lbl.length,bw=(W-20)/n;let s=`<line x1="10" x2="${W-10}" y1="${mid}" y2="${mid}" stroke="var(--line)"/>`;
   lbl.forEach((d,i)=>{const x=10+i*bw+bw*.15,w=bw*.7,a=g[i]/mx*(mid-14),b=l[i]/mx*(mid-14);
     s+=`<rect x="${x}" y="${mid-a}" width="${w}" height="${a}" rx="3" fill="var(--gain)"/><rect x="${x}" y="${mid}" width="${w}" height="${b}" rx="3" fill="var(--loss)"/>`;
+    if(S.cfg.vals&&!S.cfg.hide&&n<=14){if(g[i])s+=`<text x="${x+w/2}" y="${mid-a-3}" text-anchor="middle" fill="var(--gain)" font-size="8">${Math.round(g[i])}</text>`;if(l[i])s+=`<text x="${x+w/2}" y="${mid+b+9}" text-anchor="middle" fill="var(--loss)" font-size="8">${Math.round(l[i])}</text>`}
     if(i%step===0)s+=`<text x="${x+w/2}" y="${H-4}" text-anchor="middle" fill="var(--mut)" font-size="9">${d}</text>`});
   return mk(`<svg viewBox="0 0 ${W} ${H}">${s}</svg>`,'<span><i style="background:var(--gain)"></i>Reçu</span><span><i style="background:var(--loss)"></i>Dépensé</span>');
 }
@@ -148,19 +163,19 @@ const CH=[
   if(!sm)return none('Aucun argent pour l’instant.');
   const r=70,C=2*Math.PI*r;let off=0,a='',lg='';
   it.forEach(x=>{const l=x.v/sm*C;a+=`<circle r="${r}" cx="100" cy="100" fill="none" stroke="${x.b.color}" stroke-width="30" stroke-dasharray="${l} ${C-l}" stroke-dashoffset="${-off}" transform="rotate(-90 100 100)"/>`;off+=l;lg+=`<span><i style="background:${x.b.color}"></i>${esc(x.b.name)} ${Math.round(x.v/sm*100)} %</span>`});
-  return mk(`<svg viewBox="0 0 200 200" style="max-width:260px;margin:auto">${a}<text x="100" y="106" text-anchor="middle" fill="currentColor" font-size="17" font-family="Georgia">${eur(sm)}</text></svg>`,lg)}},
+  return mk(`<svg viewBox="0 0 200 200" style="max-width:260px;margin:auto">${a}<text x="100" y="106" text-anchor="middle" fill="currentColor" font-size="17">${eur(sm)}</text></svg>`,lg)}},
  {t:'Soldes par banque',f(){
   if(!S.banks.length)return none('Ajoute une banque pour voir ce graphique.');
   const mx=Math.max(1,...S.banks.map(b=>Math.abs(bal(b)))),h=44,H=S.banks.length*h+6;
   return mk(`<svg viewBox="0 0 320 ${H}">${S.banks.map((b,i)=>{const v=bal(b),w=Math.abs(v)/mx*220,y=i*h+4;return `<text x="0" y="${y+11}" fill="var(--mut)" font-size="12">${esc(b.name)}</text><rect x="0" y="${y+16}" width="${Math.max(w,3)}" height="18" rx="5" fill="${b.color}"/><text x="${Math.max(w,3)+8}" y="${y+30}" fill="currentColor" font-size="12">${eur(v)}</text>`}).join('')}</svg>`)}},
  {t:'Évolution du total',f:()=>lines(false)},
  {t:'Évolution par banque',f:()=>lines(true)},
- {t:'14 derniers jours',f(){
-  const ds=[];for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);ds.push(d.toLocaleDateString('sv'))}
+ {get t(){return S.cfg.days+' derniers jours'},f(){
+  const ds=[];for(let i=S.cfg.days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);ds.push(d.toLocaleDateString('sv'))}
   const q=(d,s)=>sum(S.tx.filter(t=>t.date===d&&t.amt*s>0).map(t=>Math.abs(t.amt)));
-  return bars(ds.map(d=>d.slice(8)+'/'+d.slice(5,7)),ds.map(d=>q(d,1)),ds.map(d=>q(d,-1)),3)}},
+  return bars(ds.map(d=>d.slice(8)+'/'+d.slice(5,7)),ds.map(d=>q(d,1)),ds.map(d=>q(d,-1)),Math.ceil(ds.length/5))}},
  {t:'Mois par mois',f(){
-  const ms=[];for(let i=5;i>=0;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);ms.push(d.toLocaleDateString('sv').slice(0,7))}
+  const ms=[];for(let i=S.cfg.months-1;i>=0;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);ms.push(d.toLocaleDateString('sv').slice(0,7))}
   const q=(m,s)=>sum(S.tx.filter(t=>t.date.slice(0,7)===m&&t.amt*s>0).map(t=>Math.abs(t.amt)));
   return bars(ms.map(m=>new Date(m+'-02').toLocaleDateString('fr-FR',{month:'short'})),ms.map(m=>q(m,1)),ms.map(m=>q(m,-1)),1)}}
 ];
@@ -175,7 +190,7 @@ function render(){
   let h='';
   if(screen===0){
     const L=sorted().slice(0,5);
-    h=`<div class="total"><small>Mon argent au total</small><b>${eur(total())}</b></div>
+    h=`<div class="total"><button class="eye" onclick="setCfg('hide',${!S.cfg.hide})">${S.cfg.hide?'Afficher':'Masquer'}</button><small>Mon argent au total</small><b>${eur(total())}</b></div>
     <div class="card"><h2>Mes banques</h2>${S.banks.length?S.banks.map(b=>bankRow(b)).join(''):'<div class="empty">Appuie sur + pour créer ta première banque.</div>'}</div>
     <div class="card"><h2>Derniers mouvements</h2>${L.length?L.map(txRow).join(''):'<div class="empty">Rien pour l’instant.</div>'}</div>`;
   }else if(screen===1){
@@ -187,17 +202,38 @@ function render(){
     const L=sorted().filter(t=>filt==='all'||t.bank===filt).slice(0,100);
     h=`<h2 style="padding:14px 4px 0">Historique</h2><div class="card"><select onchange="filt=this.value;render()"><option value="all">Toutes les banques</option>${S.banks.map(b=>`<option value="${b.id}" ${filt===b.id?'selected':''}>${esc(b.name)}</option>`).join('')}</select></div>
     <div class="card">${L.length?L.map(txRow).join(''):'<div class="empty">Rien pour l’instant.</div>'}</div>`;
-  }else{
-    h=`<h2 style="padding:14px 4px 0">Banques</h2><div class="card">${S.banks.length?S.banks.map(b=>bankRow(b,1)).join(''):'<div class="empty">Aucune banque.</div>'}<button class="main" style="margin-top:10px" onclick="openSheet('bank')">Ajouter une banque</button></div>
-    <div class="card"><h2>Sauvegarde</h2><div class="row"><button onclick="exp()">Exporter</button><button onclick="$('imp').click()">Importer</button></div><input id="imp" type="file" accept="application/json" hidden onchange="imp(this)"></div>`;
-  }
+  }else if(screen===3){
+    h=`<h2 style="padding:14px 4px 0">Banques</h2><div class="card">${S.banks.length?S.banks.map(b=>bankRow(b,1)).join(''):'<div class="empty">Aucune banque.</div>'}<button class="main" style="margin-top:10px" onclick="openSheet('bank')">Ajouter une banque</button></div>`;
+  }else h=settingsHTML();
   $('app').innerHTML=h;
-  $('bar').innerHTML=['Accueil','Graphiques','Historique','Banques'].map((n,i)=>`<button class="${i===screen?'on':''}" onclick="screen=${i};render();scrollTo(0,0)">${n}</button>`).join('');
+  $('bar').innerHTML=['Accueil','Graphiques','Historique','Banques','Réglages'].map((n,i)=>`<button class="${i===screen?'on':''}" onclick="screen=${i};render();scrollTo(0,0)">${n}</button>`).join('');
   const cv=$('cv');if(cv){let x0=0;cv.ontouchstart=e=>x0=e.touches[0].clientX;cv.ontouchend=e=>{const d=e.changedTouches[0].clientX-x0;if(Math.abs(d)>50)go(d<0?1:-1)}}
 }
+const seg=(k,o)=>`<div class="seg">${o.map(([l,v])=>`<button class="${S.cfg[k]===v?'on':''}" onclick='setCfg(${JSON.stringify(k)},${JSON.stringify(v)})'>${l}</button>`).join('')}</div>`;
+function apply(){const c=S.cfg,r=document.documentElement;
+  if(c.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',c.theme);
+  if(c.acc)r.style.setProperty('--acc',c.acc);else r.style.removeProperty('--acc');
+  r.style.setProperty('--font',c.font==='sans'?'-apple-system,"Helvetica Neue",Arial,sans-serif':'Georgia,"Times New Roman",serif');
+  document.body.style.fontSize=(16*c.size/100)+'px'}
+function setCfg(k,v){S.cfg[k]=v;if(k==='start')ci=v;save();apply();render()}
+function wipe(){if(!confirm('Effacer toutes tes banques et tes mouvements ?'))return;S.banks=[];S.tx=[];save();render()}
+function settingsHTML(){const c=S.cfg;return `<h2 style="padding:14px 4px 0">Réglages</h2>
+<div class="card"><h2>Apparence</h2>
+<div class="set"><small>Thème</small>${seg('theme',[['Auto','auto'],['Sombre','dark'],['Clair','light']])}</div>
+<div class="set"><small>Couleur principale</small><div class="sw"><button class="${!c.acc?'on':''}" style="background:#f2c14e" aria-label="Doré" onclick="setCfg('acc',null)"></button>${['#ff8a7a','#7fe3a0','#6ec1ff','#c39bff','#ff9ed2'].map(x=>`<button class="${c.acc===x?'on':''}" style="background:${x}" aria-label="Couleur" onclick="setCfg('acc','${x}')"></button>`).join('')}<input type="color" value="${c.acc||'#f2c14e'}" aria-label="Autre couleur" onchange="setCfg('acc',this.value)"></div></div>
+<div class="set"><small>Police</small>${seg('font',[['Classique','serif'],['Moderne','sans']])}</div>
+<div class="set"><small>Taille du texte</small>${seg('size',[['Petit',90],['Normal',100],['Grand',115]])}</div>
+<div class="set"><small>Devise</small>${seg('cur',[['€','EUR'],['$','USD'],['£','GBP'],['CHF','CHF']])}</div>
+<div class="set"><small>Montants</small>${seg('hide',[['Visibles',false],['Masqués',true]])}</div></div>
+<div class="card"><h2>Graphiques</h2>
+<div class="set"><small>Graphique affiché en premier</small><select onchange="setCfg('start',+this.value)">${CH.map((x,i)=>`<option value="${i}" ${c.start===i?'selected':''}>${x.t}</option>`).join('')}</select></div>
+<div class="set"><small>Période des barres par jour</small>${seg('days',[['7 jours',7],['14 jours',14],['30 jours',30]])}</div>
+<div class="set"><small>Mois affichés</small>${seg('months',[['3',3],['6',6],['12',12]])}</div>
+<div class="set"><small>Valeurs sur les barres</small>${seg('vals',[['Oui',true],['Non',false]])}</div></div>
+<div class="card"><h2>Sauvegarde</h2><div class="row"><button onclick="exp()">Exporter</button><button onclick="$('imp').click()">Importer</button></div><input id="imp" type="file" accept="application/json" hidden onchange="imp(this)"><button style="margin-top:8px;color:var(--loss)" onclick="wipe()">Effacer toutes mes données</button></div>`}
 function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='bank-sauvegarde.json';a.click()}
-function imp(i){const f=i.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(d.banks&&d.tx){S=d;save();render()}else alert('Fichier invalide')}catch(e){alert('Fichier invalide')}})}
-render();
+function imp(i){const f=i.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(d.banks&&d.tx){S=d;S.cfg=Object.assign({},DEF,S.cfg||{});save();apply();render()}else alert('Fichier invalide')}catch(e){alert('Fichier invalide')}})}
+apply();render();
 </script>
 </body>
 </html>
